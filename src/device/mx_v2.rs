@@ -10,7 +10,6 @@
 use crate::device::*;
 
 reg_read_only!(model_number, 0, u16);
-reg_read_only!(model_information, 4, u32);
 reg_read_only!(firmware_version, 6, u8);
 
 // unit is 1ms
@@ -19,8 +18,8 @@ reg_read_only!(moving, 122, u8);
 reg_read_only!(moving_status, 123, u8);
 // unit is about about 0.113 [%]
 reg_read_only!(present_pwm, 124, u16);
-// unit is about 3.36[mA]
-reg_read_only!(present_current, 126, u16);
+// unit is 0.1%, range from -1000 (CW) to 1000 (CCW)
+reg_read_only!(present_load, 126, i16);
 // unit is 0.229 rpm
 reg_read_only!(present_velocity, 128, u32);
 // TODO: double check if position shoul dbe i32
@@ -69,6 +68,9 @@ reg_read_write!(torque_enable, 64, u8);
 reg_read_write!(led, 65, u8);
 
 // TODO: status return level
+// TODO: Registered Instruction
+// TODO: 	Hardware Error Status
+
 reg_read_write!(velocity_i_gain, 76, u16);
 reg_read_write!(velocity_p_gain, 78, u16);
 reg_read_write!(position_d_gain, 80, u16);
@@ -76,21 +78,17 @@ reg_read_write!(position_i_gain, 82, u16);
 reg_read_write!(position_p_gain, 84, u16);
 // unit is 0.229 rpm, value range: -Velocity Limit(44) ~ Velocity Limit(44)
 reg_read_write!(goal_velocity, 104, i32);
-
-// reg_read_write!(goal_position, 30, i16);
-// reg_read_write!(moving_speed, 32, u16);
-// reg_read_write!(torque_limit, 34, u16);
-// reg_read_only!(present_position, 36, i16);
-// reg_read_only!(present_speed, 38, u16);
-// reg_read_only!(present_load, 40, u16);
-// reg_read_only!(present_voltage, 42, u8);
-// reg_read_only!(present_temperature, 43, u8);
-// reg_read_only!(registered, 44, u8);
-// reg_read_only!(moving, 46, u8);
-// reg_read_write!(lock, 47, u8);
-// reg_read_write!(punch, 48, u16);
-// reg_read_only!(realtime_tick, 50, u16);
-// reg_read_write!(goal_acceleration, 73, u8);
+// In Velocity-based profile, unit is 214.577 [rev/min2], range from 0 ~ 32767
+// In Time-based profile, unit is 1ms, range from 0 ~ 32767
+reg_read_write!(profile_acceleration, 108, u32);
+//  In Velocity-based profile, unit is 0.229 [rev/min], range from 0 ~ 32767
+// In Time-based profile,  unit is 1ms, range from 0 ~ 32767
+reg_read_write!(profile_velocity, 112, u32);
+// From the front view of DYNAMIXEL, CCW is an increasing direction, whereas CW is a decreasing direction. 
+// The way of reaching the Goal Position(116) can differ by the Profile provided by DYNAMIXEL
+// In Position Control Mode, values are between	Min Position Limit(52) ~ Max Position Limit(48), representing Initial Value : 0 ~ 4,095
+// In Extended Position Control Mode, values are between -1,048,575 ~ 1,048,575, representing -256[rev] ~ 256[rev]
+reg_read_write!(goal_position, 116, i32);
 
 /// Sync read present_position, present_speed and present_load in one message
 ///
