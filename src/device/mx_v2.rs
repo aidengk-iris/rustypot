@@ -10,7 +10,6 @@
 use crate::device::*;
 
 reg_read_only!(model_number, 0, u16);
-reg_read_only!(model_information, 4, u32);
 reg_read_only!(firmware_version, 6, u8);
 
 // unit is 1ms
@@ -19,8 +18,8 @@ reg_read_only!(moving, 122, u8);
 reg_read_only!(moving_status, 123, u8);
 // unit is about about 0.113 [%]
 reg_read_only!(present_pwm, 124, u16);
-// unit is about 3.36[mA]
-reg_read_only!(present_current, 126, u16);
+// unit is 0.1%, range from -1000 (CW) to 1000 (CCW)
+reg_read_only!(present_load, 126, u16);
 // unit is 0.229 rpm
 reg_read_only!(present_velocity, 128, u32);
 // TODO: double check if position shoul dbe i32
