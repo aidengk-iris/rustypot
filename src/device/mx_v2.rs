@@ -19,7 +19,7 @@ reg_read_only!(moving_status, 123, u8);
 // unit is about about 0.113 [%]
 reg_read_only!(present_pwm, 124, u16);
 // unit is 0.1%, range from -1000 (CW) to 1000 (CCW)
-reg_read_only!(present_load, 126, u16);
+reg_read_only!(present_load, 126, i16);
 // unit is 0.229 rpm
 reg_read_only!(present_velocity, 128, u32);
 // TODO: double check if position shoul dbe i32
