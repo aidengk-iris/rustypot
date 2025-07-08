@@ -7,98 +7,94 @@
 //!
 //! See <https://emanual.robotis.com/docs/en/dxl/mx/mx-28/> for example.
 
-use crate::device::*;
+use std::f64::consts::PI;
 
-reg_read_only!(model_number, 0, u16);
-reg_read_only!(firmware_version, 6, u8);
+use crate::{generate_servo, servo::conversion::Conversion};
 
-// unit is 1ms
-reg_read_only!(realtime_tick, 120, u16);
-reg_read_only!(moving, 122, u8);
-reg_read_only!(moving_status, 123, u8);
-// unit is about about 0.113 [%]
-reg_read_only!(present_pwm, 124, u16);
-// unit is 0.1%, range from -1000 (CW) to 1000 (CCW)
-reg_read_only!(present_load, 126, i16);
-// unit is 0.229 rpm
-reg_read_only!(present_velocity, 128, u32);
-// TODO: double check if position shoul dbe i32
-reg_read_only!(present_position, 132, i32);
-reg_read_only!(velocity_trajectory, 136, u32);
-reg_read_only!(position_trajectory, 140, u32);
-reg_read_only!(present_input_voltage, 144, u16);
-reg_read_only!(present_temperature, 146, u8);
+generate_servo!(
+    MX, v2,
+    reg: (model_number, r, 0, u16, None),
+    reg: (firmware_version, r, 6, u8, None),
+    reg: (id, rw, 7, u8, None),
+    reg: (baudrate, rw, 8, u8, None),
+    reg: (return_delay_time, rw, 9, u8, None),
+    reg: (drive_mode, rw, 10, u8, None),
 
+    reg: (operating_mode, rw,11, u8, None),
+    reg: (secondary_id, rw,12, u8, None),
+    reg: (protocol_type, rw,13, u8, None),
 
-reg_read_write!(id, 7, u8);
-reg_read_write!(baudrate, 8, u8);
-reg_read_write!(return_delay_time, 9, u8);
-reg_read_write!(drive_mode, 10, u8);
-reg_read_write!(operating_mode, 11, u8);
-reg_read_write!(secondary_id, 12, u8);
-reg_read_write!(protocol_type, 13, u8);
-// 	Home Position Offset
-reg_read_write!(homing_offset, 20, i32);
-// threshold unit is about 0.229 rpm
-reg_read_write!(moving_threshold, 24, u32);
-// temperature unit is about 1°
-reg_read_write!(temperature_limit, 31, u8);
+    // 	Home Position Offset
+    reg: (homing_offset, rw, 20, i32, None),
+    // threshold unit is about 0.229 rpm
+    reg: (moving_threshold, rw, 24, u32, None),
+    // temperature unit is about 1°
+    reg: (temperature_limit, rw, 31, u8, None),
+    // voltage unit is about 0.1V
+    reg: (max_voltage_limit, rw, 32, u16, None),
+    reg: (min_voltage_limit, rw, 34, u16, None),
+    // pwm unit is about 0.113 %
+    reg: (pwm_limit, rw, 36, u16, None),
+    // current limit unit is about 3.36mA
+    reg: (current_limit, rw, 38, u16, None),
+    // acceleration unit is 214.577 Rev/min2
+    reg: (acceleration_limit, rw, 40, u32, None),
+    //  velocity unit is about 0.229rpm
+    reg: (velocity_limit, rw, 44, u32, None),
+    // position limit unit is 0.088 [°]
+    reg: (max_position_limit, rw, 48, u32, None),
+    // position limit unit is 0.088 [°]
+    reg: (min_position_limit, rw,52, u32, None),
+    reg: (shutdown, rw, 63, u8, None),
 
-// voltage unit is about 0.1V
-reg_read_write!(max_voltage_limit, 32, u16);
-reg_read_write!(min_voltage_limit, 34, u16);
+    // RAM area
+    reg: (torque_enable, rw, 64, u8, None),
+    reg: (led, rw, 65, u8, None),
 
-// pwm unit is about 0.113 %
-reg_read_write!(pwm_limit, 36, u16);
-// current limit unit is about 3.36mA
-reg_read_write!(current_limit, 38, u16);
-// acceleration unit is 214.577 Rev/min2
-reg_read_write!(acceleration_limit, 40, u32);
-//  velocity unit is about 0.229rpm
-reg_read_write!(velocity_limit, 44, u32);
-// position limit unit is 0.088 [°]
-reg_read_write!(max_position_limit, 48, u32);
-// position limit unit is 0.088 [°]
-reg_read_write!(min_position_limit, 52, u32);
+    // TODO: many ram area registers pending
+    reg: (goal_pwm, rw, 100, i16, None),
+    reg: (goal_current, rw, 102, i16, None),
+    // unit is 0.229 rpm, value range: -Velocity Limit(44) ~ Velocity Limit(44)
+    reg: (goal_velocity, rw, 104, i32, None),
+    // In Velocity-based profile, unit is 214.577 [rev/min2], range from 0 ~ 32767
+    // In Time-based profile, unit is 1ms, range from 0 ~ 32767
+    reg: (profile_acceleration, rw, 108, u32, None),
 
-reg_read_write!(shutdown, 63, u8);
+    //  In Velocity-based profile, unit is 0.229 [rev/min], range from 0 ~ 32767
+    // In Time-based profile,  unit is 1ms, range from 0 ~ 32767
+    reg: (profile_velocity, rw, 112, u32, None),
+    // From the front view of DYNAMIXEL, CCW is an increasing direction, whereas CW is a decreasing direction. 
+    // The way of reaching the Goal Position(116) can differ by the Profile provided by DYNAMIXEL
+    // In Position Control Mode, values are between	Min Position Limit(52) ~ Max Position Limit(48), representing Initial Value : 0 ~ 4,095
+    // In Extended Position Control Mode, values are between -1,048,575 ~ 1,048,575, representing -256[rev] ~ 256[rev]
+    reg: (goal_position, rw, 116, i32, AnglePosition),
+    reg: (realtime_tick, r, 120, u16, None),
+    reg: (moving, r, 122, u8, None),
+    reg: (moving_status, r, 123, u8, None),
+    // unit is about about 0.113 [%]
+    reg: (present_pwm, r, 124, u16, None),
+    // unit is 0.1%, range from -1000 (CW) to 1000 (CCW)
+    reg: (present_current, r, 126, i16, None),
+    // unit is 0.229 rpm
+    reg: (present_velocity, r, 128, u32, None),
+    // TODO: double check if position should be i32
+    reg: (present_position, r, 132, i32, None),
+    reg: (velocity_trajectory, r, 136, u32, None),
+    reg: (position_trajectory, r, 140, u32, None),
+    reg: (present_input_voltage, r, 144, u16, None),
+    reg: (present_temperature, r, 146, u8, None),
 
-// RAM area
-reg_read_write!(torque_enable, 64, u8);
-reg_read_write!(led, 65, u8);
-
-// TODO: status return level
-// TODO: Registered Instruction
-// TODO: 	Hardware Error Status
-
-reg_read_write!(velocity_i_gain, 76, u16);
-reg_read_write!(velocity_p_gain, 78, u16);
-reg_read_write!(position_d_gain, 80, u16);
-reg_read_write!(position_i_gain, 82, u16);
-reg_read_write!(position_p_gain, 84, u16);
-// unit is 0.229 rpm, value range: -Velocity Limit(44) ~ Velocity Limit(44)
-reg_read_write!(goal_velocity, 104, i32);
-// In Velocity-based profile, unit is 214.577 [rev/min2], range from 0 ~ 32767
-// In Time-based profile, unit is 1ms, range from 0 ~ 32767
-reg_read_write!(profile_acceleration, 108, u32);
-//  In Velocity-based profile, unit is 0.229 [rev/min], range from 0 ~ 32767
-// In Time-based profile,  unit is 1ms, range from 0 ~ 32767
-reg_read_write!(profile_velocity, 112, u32);
-// From the front view of DYNAMIXEL, CCW is an increasing direction, whereas CW is a decreasing direction. 
-// The way of reaching the Goal Position(116) can differ by the Profile provided by DYNAMIXEL
-// In Position Control Mode, values are between	Min Position Limit(52) ~ Max Position Limit(48), representing Initial Value : 0 ~ 4,095
-// In Extended Position Control Mode, values are between -1,048,575 ~ 1,048,575, representing -256[rev] ~ 256[rev]
-reg_read_write!(goal_position, 116, i32);
+);
 
 /// Sync read present_position, present_speed and present_load in one message
 ///
 /// reg_read_only!(present_position_speed_load, 36, (i16, u16, u16))
 pub fn sync_read_present_position_speed_load(
-    io: &DynamixelSerialIO,
+    dph: &crate::DynamixelProtocolHandler,
     serial_port: &mut dyn serialport::SerialPort,
     ids: &[u8],
-) -> Result<Vec<(i16, u16, u16)>> {
-    let val = io.sync_read(serial_port, ids, 36, 2 + 2 + 2)?;
+) -> crate::Result<Vec<(i16, u16, u16)>> {
+    let val = dph.sync_read(serial_port, ids, 36, 2 + 2 + 2)?;
     let val = val
         .iter()
         .map(|v| {
@@ -113,23 +109,23 @@ pub fn sync_read_present_position_speed_load(
     Ok(val)
 }
 
+pub struct AnglePosition;
+
+impl Conversion for AnglePosition {
+    type RegisterType = i16;
+    type UsiType = f64;
+
+    fn from_raw(raw: i16) -> f64 {
+        (2.0 * PI * (raw as f64) / 4096.0) - PI
+    }
+
+    fn to_raw(value: f64) -> i16 {
+        (4096.0 * (PI + value) / (2.0 * PI)) as i16
+    }
+}
+
 /// Unit conversion for MX motors
 pub mod conv {
-    use std::f64::consts::PI;
-
-    /// Dynamixel angular position to radians
-    ///
-    /// Works in joint and multi-turn mode
-    pub fn dxl_pos_to_radians(pos: i16) -> f64 {
-        (2.0 * PI * (pos as f64) / 4096.0) - PI
-    }
-    /// Radians to dynamixel angular position
-    ///
-    /// Works in joint and multi-turn mode
-    pub fn radians_to_dxl_pos(rads: f64) -> i16 {
-        (4096.0 * (PI + rads) / (2.0 * PI)) as i16
-    }
-
     /// Dynamixel absolute speed to radians per second
     ///
     /// Works for moving_speed in joint mode for instance
@@ -211,14 +207,16 @@ pub mod conv {
 mod tests {
     use std::f64::consts::PI;
 
+    use crate::servo::{conversion::Conversion, dynamixel::mx::AnglePosition};
+
     use super::conv::*;
 
     #[test]
     fn position_conversions() {
-        assert_eq!(radians_to_dxl_pos(0.0), 2048);
-        assert_eq!(radians_to_dxl_pos(-PI / 2.0), 1024);
-        assert_eq!(radians_to_dxl_pos(PI / 2.0), 3072);
-        assert_eq!(dxl_pos_to_radians(2048), 0.0);
+        assert_eq!(AnglePosition::to_raw(0.0), 2048);
+        assert_eq!(AnglePosition::to_raw(-PI / 2.0), 1024);
+        assert_eq!(AnglePosition::to_raw(PI / 2.0), 3072);
+        assert_eq!(AnglePosition::from_raw(2048), 0.0);
     }
 
     #[test]
